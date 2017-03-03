@@ -139,45 +139,37 @@ Identify the top 3 most consistently differentially expressed genes between the 
 
 ```{r reformat_time, eval=FALSE}
 library(stringr)
-cleaned_data %>%
-  mutate(time.point = str_replace(time.point, 'hpi', ''),
-         time.point = str_c('hpi.', time.point)) -> cleaned_data_hpi
-cleaned_data_hpi
+cleaned_data %>% mutate(time.point = str_replace(time.point, 'hpi', ''), time.point = str_c('hpi.', time.point))-> cleaned_data_hpi
+
+# Variant: cleaned_data %>% mutate(time.value = str_replace(time.point, 'hpi', ''), time.hpi = str_c('hpi.', time.value)) %>% select(-time.point, -time.value)-> cleaned_data_hpi
 ```
 
 2. Create a new column containing the expression difference between the relevant time points.
 
-```{r}
+```{r new_column}
 library(stringr)
-cleaned_data %>% mutate(time.value = str_replace(time.point, 'hpi', ''), time.hpi = str_c('hpi.', time.value)) %>% select(-time.point, -time.value)-> cleaned_data_hpi
-cleaned_data_hpi %>% spread(time.hpi,value)
+cleaned_data %>% mutate(time.point = str_replace(time.point, 'hpi', ''), time.point = str_c('hpi.', time.point))-> cleaned_data_hpi
+cleaned_data_hpi %>% spread(time.point,value) %>% mutate(expr.diff = abs(hpi.24 - hpi.6), expr.diff.var = var(expr.diff)) -> expr_data
+expr_data
 ```
 
 3. Calculate summary statistics (mean and variance) of the expression differences by grouping (hint) the `gene.name`, and `plant` columns.
 
-```{r}
-# Using the fold ratio to determine the top 3 most consistently differentially expressed genes 
-cleaned_data_hpi %>% spread(time.hpi,value) %>% mutate(expr.diff = hpi.24 / hpi.6) -> expr_data
-expr_data %>% group_by(plant, fungus, gene.name) %>%   summarise(mean.hpi.6 = mean(hpi.6), mean.hpi.24 = mean(hpi.24), expr.diff.mean = mean(expr.diff), expr.diff.var=var(expr.diff)) -> mean_var_data
-mean_var_data
 
-```
+```{r substraction}
+# Using substraction to determine the differentially expressed genes
+expr_data %>% group_by(plant, fungus, gene.name) %>% summarise(expr.diff.mean = mean(expr.diff), expr.diff.var=var(expr.diff)) -> expr_data_mean 
 
-
-```{r}
-# Attempt to avoid results that does not make sense: removing  
-mean_var_data %>% filter(mean.hpi.6!=0) %>% arrange(mean.hpi.6) -> filtered_mean_var_data
-filtered_mean_var_data %>% filter(mean.hpi.24!=0) %>% arrange(mean.hpi.24) %>% filter(expr.diff.mean!="NaN") %>% filter(expr.diff.mean!="Inf") -> filtered_data
 ```
 
 4. Sort by these statistics and use the `dplyr` verb `slice` to pull the ones you want (i.e., the top 3). Note you will have to remove `gene.name` from the grouping so that sorting works.
 
 ```{r}
-# Using the fold ratio
-# Previously: mean_var_data %>% arrange(desc(expr.diff.mean)) %>%  arrange(expr.diff.var) %>% slice(1:3) -> top3_genes
-filtered_data %>% arrange(desc(expr.diff.mean)) %>%  arrange(expr.diff.var) %>% slice(1:3) %>% select(plant, fungus, gene.name, expr.diff.mean, expr.diff.var)-> top3_genes
-# Trying to print the first 12 rows
-top3_genes %>% tbl_df() %>% print (n=12)
+# Use arrange and slice to find the top 3 most consistently differentially expressed genes
+
+expr_data_mean %>% arrange(desc(expr.diff.mean)) %>%  arrange(expr.diff.var) %>% slice(1:3) %>% select(plant, fungus, gene.name, expr.diff.mean, expr.diff.var)-> top3_genes
+top3_genes
+# In case it does not display 12 row (but only 10): top3_genes %>% tbl_df() %>% print (n=12)
 # Alternative way: print(tbl_df(top3_genes), n=12)
 
 ```
@@ -200,10 +192,10 @@ filter(top3_genes, grepl("pps", plant)) %>%  filter(., grepl("K1", fungus)) %>% 
 ```
 
 My tidy dataset has `r ncol(top3_genes)` columns and `r nrow(top3_genes)` rows. The name of the columns are `r colnames(top3_genes)`.
-The highest fold enrichment of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with other effectors than the AVRA1 effector is: `r top_gene_B12_A6`.
-The highest fold enrichment of a gene in the pps plant (partially immunocompromised) treated with other effectors than the AVRA1 effector is: `r top_gene_pps_A6`.
-The highest fold enrichment of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with the AVRA1 effector is: `r top_gene_B12_K1`.
-The highest fold enrichment of a gene in the pps plant (partially immunocompromised) treated with othe AVRA1 effector is: `r top_gene_pps_K1`.
+The highest difference in expression of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with other effectors than the AVRA1 effector is: `r top_gene_B12_A6`.
+The highest differemce im epressopm of a gene in the pps plant (partially immunocompromised) treated with other effectors than the AVRA1 effector is: `r top_gene_pps_A6`.
+The highest difference of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with the AVRA1 effector is: `r top_gene_B12_K1`.
+The highest difference of a gene in the pps plant (partially immunocompromised) treated with othe AVRA1 effector is: `r top_gene_pps_K1`.
 
 ## Problem 5
 
@@ -211,25 +203,32 @@ Plot the expression (`value`) by time (`hpi`) for the above genes. Format the pl
 
 ```{r}
 library(tidyverse)
-# First, create a list of the genes differentially expressed
-top3_genes %>% 
-cleaned_data_hpi %>% 
-  
+# First, select the information about the top 3 differentially expressed genes
+#cleaned_data %>% mutate(hpi = str_replace(time.point, 'hpi', '')) %>%  select(gene.name, plant, fungus, rep, hpi, value) -> cleaned_data_selected
+
+#filter(cleaned_data_selected, gene.name %in% top3_genes$gene.name) -> data_for_graph
+#data_for_graph
 ```
 
 1. Plot each point.
 ```{r}
-
-library(ggplot2)
-ggplot(top3_genes, aes(x = hpi, y = value)) + geom_point() + geom_smooth(method = 'lm', se= FALSE)
+#library(ggplot2)
+#ggplot(data_for_graph, aes(x = hpi, y = value)) + geom_point()
 
 ```
-1. Connect the points with a smooth line 
-1. Create a facet for each `plant` / `bgh` pair 
-1. Assign a different color to each gene 
-1. Assign a different shape to each replicate 
-1. Add a descriptive title to the plot 
-1. Use the "black & white" theme
+2. Connect the points with a smooth line 
+```{r}
+
+
+```
+3. Create a facet for each `plant` / `bgh` pair 
+```{r}
+#top3_genes %>% mutate(plant.bgh.pair = plant + fungus)
+```
+4. Assign a different color to each gene 
+5. Assign a different shape to each replicate 
+6. Add a descriptive title to the plot 
+7. Use the "black & white" theme
 
 Extra credit: add error bars to the plot (use `geom_errorbar`).
 
