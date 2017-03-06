@@ -269,39 +269,53 @@ ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value)) + geom_point
 2. Connect the points with a smooth line 
 ```{r question_5_2}
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, group = gene.name)) + geom_point()  + xlab("time") + geom_smooth(method = 'lm', se = F)
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, group = gene.name)) +
+ geom_point()  + xlab("time") + geom_smooth(method = 'lm', se = F)
 ```
+
 3. Create a facet for each `plant` / `bgh` pair 
 ```{r question_5_3}
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, group = gene.name)) + geom_point() + xlab("time") + facet_wrap(~plant~fungus) + geom_smooth(method = 'lm', se = F)
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, group = gene.name)) + 
+  geom_point() + xlab("time") + facet_wrap(~plant~fungus) + geom_smooth(method = 'lm', se = F)
 ```
 4. Assign a different color to each gene 
 ```{r question_5_4}
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name)) + geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + geom_smooth(method = 'lm', se = F)
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name)) + 
+  geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + geom_smooth(method = 'lm', se = F)
 ```
 
 5. Assign a different shape to each replicate 
 
 ```{r question_5_5}
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + geom_point()  + xlab("time") + facet_wrap(~plant~fungus) +  scale_shape_manual(values=c(21,24,8)) 
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + 
+  geom_point()  + xlab("time") + facet_wrap(~plant~fungus) +  scale_shape_manual(values=c(21,24,8)) +
+  geom_smooth(method = 'lm', se = F)
 ```
 
 6. Add a descriptive title to the plot 
 
 ```{r question_5_6}
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + scale_shape_manual(values=c(21,24,8)) + ggtitle('Gene expression profile of the top 3 differentially \n expressed genes per pair plant/fungus over the time course')
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + 
+  geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + scale_shape_manual(values=c(21,24,8)) + 
+  geom_smooth(method = 'lm', se = F) +
+  ggtitle('Gene expression profile of the top 3 differentially \n expressed genes per pair plant/fungus over the time course')
 ```
 
 7. Use the "black & white" theme
 
 ```{r question_5_7}
+# theme black and white (and theme cowplot)
 library(cowplot)
 all_data_for_graphs$time.point <- as.numeric(all_data_for_graphs$time.point)
-ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + scale_shape_manual(values=c(21,24,8)) + ggtitle('Gene expression profile of the top 3 differentially \n expressed genes per pair plant/fungus over the time course') + theme_bw() + theme_cowplot()
+ggplot(all_data_for_graphs, aes(x = factor(time.point), y = value, color = gene.name, group = gene.name, shape=factor(rep))) + 
+  geom_point()  + xlab("time") + facet_wrap(~plant~fungus) + scale_shape_manual(values=c(21,24,8)) + 
+  geom_smooth(method = 'lm', se = F) +
+  ggtitle('Gene expression profile of the top 3 differentially \n expressed genes per pair plant/fungus over the time course') + 
+  theme_bw() + theme_cowplot()
 ```
 
 Extra credit: add error bars to the plot (use `geom_errorbar`).
