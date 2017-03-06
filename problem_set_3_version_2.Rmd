@@ -1,0 +1,244 @@
+---
+title: "Problem Set 3. Due Thurs March 2 5pm"
+author: "Etienne Danis"
+date: "Feb 23, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "#>")
+```
+
+# Submission
+
+1. Fork this repository to your own account
+1. Make changes to the `README.Rmd` file (including the author field above).
+1. Knit the file to HTML format and add it to your git repository (`git add`)
+1. Submit a pull request with your Rmd and knitted HTML files.
+
+# Overview 
+
+You will examine a [time-course of mRNA expression][1] of barley powdery mildew fungus in immunocompromised plants (*Arabidopsis*). The fungus Blumeria graminis f. sp. hordei (called *Bgh* from now on)
+
+Counts were generated using the [`maSigPro` software][3] and deposited in [NCBI GEO][2].
+
+[1]: http://www.ncbi.nlm.nih.gov/pubmed/23175786
+[2]: http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE43163  
+[3]: http://bioinformatics.oxfordjournals.org/content/30/18/2598.full
+
+Some important identifiers for the data set:
+
+| Name | Description |
+| ---- | ----------- |
+| `A6` | *Bgh* isolate expressing other AVRA effectors |
+| `K1` | *Bgh* isolate expressing the cognate AVRA1 effector for MLA1|
+| `pps` | *Arabidopsis* plants |
+| `B12` | *Arabidopsis* plants expressing MLA1-HA|
+
+We will download tables from GEO containing counts of mRNA abundance from both the fungal sample.
+
+# Raw data
+
+First we need load the data.
+
+```{r load_raw_data, message = FALSE}
+library(tidyverse)
+
+# bgh data
+bgh_url <- 'http://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE43163&format=file&file=GSE43163_CompleteCountTable_Bgh.txt.gz'
+
+# 2 info and blank lines at top, skip them
+raw_data <- read_tsv(bgh_url, skip = 2)
+
+# the header for the first column is "NA", set it manually
+names(raw_data)[1] <- 'gene.name'
+
+raw_data <- as_data_frame(raw_data)
+raw_data
+```
+
+# Problems
+
+
+## Problem 1
+
+Now that the raw data are loaded, your first task is to tidy the data with `tidyr`. The `cleaned_data` should look something like this:
+
+```
+# A tibble: 310,896 × 6
+             gene.name plant fungus time.point   rep value
+*                <chr> <chr>  <chr>      <chr> <chr> <int>
+1             bgh04079   B12     A6       6hpi     1    13
+2             bgh01634   B12     A6       6hpi     1    31
+3  bghG000012000001001   B12     A6       6hpi     1   121
+4  bghG000012000002001   B12     A6       6hpi     1     3
+5             bgh00757   B12     A6       6hpi     1   253
+6             bgh01273   B12     A6       6hpi     1    45
+7             bgh01274   B12     A6       6hpi     1    32
+8             bgh01277   B12     A6       6hpi     1     9
+9             bgh06140   B12     A6       6hpi     1    47
+10            bgh05774   B12     A6       6hpi     1    42
+# ... with 310,886 more rows
+```
+
+The key steps are to `gather()` the data into key-value pairs and then `separate()` the information from the key column into new columns.
+
+```{r problem_1}
+# add tidying code here
+library(tidyverse)
+raw_data %>% gather(key,value,-gene.name) %>% separate(key, into = c('plant', 'fungus', 'time.point', 'rep'), sep = '_') -> cleaned_data
+cleaned_data
+
+# report the cleaned_data by just naming it, uncomment the following line:
+# cleaned_data
+```
+
+## Problem 2
+
+You need to translate what you learned on the command line into the R world.
+
+Which plant has the highest expression of any gene in the 6hpi time point?
+
+```{bash, eval=FALSE}
+raw_data | awk '$4 == "6hpi"' | sort -k6nr | head -n 1 | cut -f2
+```
+
+```{r}
+# translate to dplyr code
+
+filter(cleaned_data, time.point=="6hpi") %>% arrange(desc(value)) %>% select(plant) %>%  filter(row_number()==1)
+
+```
+
+Which plant / fungus pair has the highest expression in the 18hpi time point?
+
+```{bash, eval=FALSE}
+raw_data | awk '$4 == "18hpi"' | sort -k6nr | head -n 1 | cut -f2,3
+```
+
+```{r}
+# translate to dplyr code
+
+filter(cleaned_data, time.point=="18hpi") %>% arrange(desc(value)) %>% select(plant, fungus) %>% filter(row_number()==1)
+
+```
+
+## Problem 3
+
+Identify the top 3 most consistently differentially expressed genes between the earliest and latest time points for each combination of `plant` and `fungus` strains.
+
+- "Differential expression"" is the difference between `value` (i.e., gene expression level) between time points.
+
+- "Consistency" is the smallest variance in `value` between replicates.
+
+### Strategy
+
+1. Create a new table from the cleaned data by moving each `hpi` value to a new column name, with counts for each in the column (hint: use a `tidyr` verb). It is helpful to reformat the `hpi` values by converting from e.g. `6hpi` to `hpi.6`. You can use `mutate` to do this, i.e.:
+
+```{r reformat_time, eval=FALSE}
+library(stringr)
+#Used in version_1: cleaned_data %>% mutate(time.point = str_replace(time.point, 'hpi', ''), time.point = str_c('hpi.', time.point))-> cleaned_data_hpi
+# Below, here is the version_2
+cleaned_data %>% mutate(time.value = str_replace(time.point, 'hpi', ''), time.hpi = str_c('hpi.', time.value)) %>% select(-time.point, -time.value)-> cleaned_data_hpi2
+cleaned_data_hpi2
+```
+
+2. Create a new column containing the expression difference between the relevant time points.
+
+```{r new_column}
+library(stringr)
+# Version_2
+cleaned_data %>% mutate(time.value = str_replace(time.point, 'hpi', ''), time.hpi = str_c('hpi.', time.value)) %>% select(-time.point, -time.value) -> cleaned_data_hpi2
+cleaned_data_hpi2 %>% spread(time.hpi,value) %>% mutate(expr.diff = abs(hpi.24 - hpi.6), expr.diff.var = var(expr.diff)) -> expr_data2
+expr_data2
+```
+
+
+3. Calculate summary statistics (mean and variance) of the expression differences by grouping (hint) the `gene.name`, and `plant` columns.
+
+
+```{r substraction}
+# Using substraction to determine the differentially expressed genes
+expr_data2 %>% group_by(plant, fungus, gene.name) %>% summarise(expr.diff.mean = mean(expr.diff), expr.diff.var=var(expr.diff)) -> expr_data_mean2
+
+```
+
+4. Sort by these statistics and use the `dplyr` verb `slice` to pull the ones you want (i.e., the top 3). Note you will have to remove `gene.name` from the grouping so that sorting works.
+
+```{r}
+# Use arrange and slice to find the top 3 most consistently differentially expressed genes
+
+expr_data_mean2 %>% arrange(desc(expr.diff.mean)) %>%  arrange(expr.diff.var) %>% slice(1:3) %>% select(plant, fungus, gene.name, expr.diff.mean, expr.diff.var)-> top3_genes2
+top3_genes2
+# In case it does not display 12 row (but only 10): top3_genes %>% tbl_df() %>% print (n=12)
+# Alternative way: print(tbl_df(top3_genes), n=12)
+
+```
+
+## Problem 4
+
+Now examine the above final data frame above and write a few sentences putting inline code in least 3 places. For example, There are `r nrow(mtcars)` rows of data in `mtcars`.
+
+
+```{r, echo = FALSE}
+
+filter(top3_genes2, grepl("B12", plant)) %>%  filter(., grepl("A6", fungus)) %>%  ungroup() %>% select(expr.diff.mean) %>%  slice(1) %>% format(round(1), nsmall = 1) -> top_gene_B12_A6_2
+
+filter(top3_genes2, grepl("pps", plant)) %>%  filter(., grepl("A6", fungus)) %>%  ungroup() %>% select(expr.diff.mean) %>%  slice(1) %>% format(round(1), nsmall = 1) -> top_gene_pps_A6_2
+
+filter(top3_genes2, grepl("B12", plant)) %>%  filter(., grepl("K1", fungus)) %>%  ungroup() %>% select(expr.diff.mean) %>%  slice(1) %>% format(round(1), nsmall = 1) -> top_gene_B12_K1_2
+
+filter(top3_genes2, grepl("pps", plant)) %>%  filter(., grepl("K1", fungus)) %>%  ungroup() %>% select(expr.diff.mean) %>%  slice(1) %>% format(round(1), nsmall = 1) -> top_gene_pps_K1_2
+
+```
+
+My tidy dataset has `r ncol(top3_genes2)` columns and `r nrow(top3_genes2)` rows. The name of the columns are `r colnames(top3_genes2)`.
+
+The highest difference in expression of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with other effectors than the AVRA1 effector is: `r top_gene_B12_A6_2`.
+
+The highest difference im expression of a gene in the pps plant (partially immunocompromised) treated with effectors different from the AVRA1 effector is: `r top_gene_pps_A6_2`.
+
+The highest difference in expression of a gene in the B12 plant expressing the immune receptor MLA1-HA treated with the AVRA1 effector is: `r top_gene_B12_K1_2`.
+
+The highest difference in expression of a gene in the pps plant (partially immunocompromised) treated with effectors different from the AVRA1 effector is: `r top_gene_pps_K1_2`.
+
+
+## Problem 5
+
+Plot the expression (`value`) by time (`hpi`) for the above genes. Format the plot as follows:
+
+```{r}
+library(tidyverse)
+# First, select the information about the top 3 differentially expressed genes
+#cleaned_data %>% mutate(hpi = str_replace(time.point, 'hpi', '')) %>%  select(gene.name, plant, fungus, rep, hpi, value) -> cleaned_data_selected
+
+#filter(cleaned_data_selected, gene.name %in% top3_genes$gene.name) -> data_for_graph
+#data_for_graph
+```
+
+1. Plot each point.
+```{r}
+#library(ggplot2)
+#ggplot(data_for_graph, aes(x = hpi, y = value)) + geom_point()
+
+```
+2. Connect the points with a smooth line 
+```{r}
+
+
+```
+3. Create a facet for each `plant` / `bgh` pair 
+```{r}
+#top3_genes %>% mutate(plant.bgh.pair = plant + fungus)
+```
+4. Assign a different color to each gene 
+5. Assign a different shape to each replicate 
+6. Add a descriptive title to the plot 
+7. Use the "black & white" theme
+
+Extra credit: add error bars to the plot (use `geom_errorbar`).
+
+```{r problem_5}
+```
