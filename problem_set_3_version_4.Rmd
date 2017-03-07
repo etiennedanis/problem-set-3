@@ -434,6 +434,9 @@ ggplot(all_data_for_graphs, aes(x = factor(time.point),
 Extra credit: add error bars to the plot (use `geom_errorbar`).
 
 ```{r 5.8 extra credit - variant 1}
+# Since I was not sure which way was preferred for the representation of the error bars,
+# I proposed 2 variants (I suspect that there may many other better variants)
+
 # Variant 1 using geom_line() with geom_errorbar
 
 all_data_for_graphs %>% group_by(gene.name,plant,fungus,time.point) %>% 
